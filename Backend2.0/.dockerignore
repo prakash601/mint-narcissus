@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+cookies.txt
+*.cookies
+.git
+.gitignore
+README.md
+.DS_Store
+coverage
+.cache
+*.log
