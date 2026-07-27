@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { completeProfile } from '@/store/authSlice';
-import { updateMeApi } from '@/api/auth.api';
+import { useDispatch, useSelector } from 'react-redux';
+import { updateUser } from '@/store/authSlice';
 import SizeGuideModal from '@/components/shared/SizeGuideModal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -28,6 +27,7 @@ import {
 const ProfileSetup = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { status, error } = useSelector((state) => state.auth);
 
   const [step, setStep] = useState(1);
   const [selectedRole, setSelectedRole] = useState('borrower');
@@ -35,7 +35,6 @@ const ProfileSetup = () => {
   const [topSize, setTopSize] = useState('');
   const [bottomSize, setBottomSize] = useState('');
   const [fitType, setFitType] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleStep = () => {
     step === 1 ? setStep(2) : setStep(1);
@@ -51,15 +50,12 @@ const ProfileSetup = () => {
         fitType,
       },
     };
-    setIsLoading(true);
     try {
-      const data = await updateMeApi(profileData);
-      dispatch(completeProfile(data.user));
+      await dispatch(updateUser(profileData)).unwrap();
+      toast.success('Profile completed!');
       navigate('/');
     } catch (err) {
-      toast.error(err.response?.data?.message);
-    } finally {
-      setIsLoading(false);
+      toast.error(err || 'Failed to complete profile');
     }
   };
 
@@ -180,7 +176,7 @@ const ProfileSetup = () => {
             <Button onClick={handleStep}>Previous</Button>
             <Button
               disabled={
-                isLoading ||
+                status === 'loading' ||
                 !selectedRole ||
                 !height ||
                 !topSize ||
@@ -189,10 +185,11 @@ const ProfileSetup = () => {
               }
               onClick={handleComplete}
             >
-              Complete
+              {status === 'loading' ? 'Loading...' : 'Complete'}
             </Button>
           </div>
         )}
+        {error && <p className='text-sm text-red-500 text-center'>{error}</p>}
       </Card>
     </section>
   );

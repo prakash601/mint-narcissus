@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
-import { useSelector } from 'react-redux';
+import { useEffect, useMemo } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import Filter from '@/components/borrower/Filter';
 import OutfitsContainer from '@/components/outfits/OutfitsContainer';
 import { filterOutfits } from '@/utils/filterOutfit';
 import EmptyState from '../shared/EmptyState';
 import { LuHeart } from '@/utils/icons';
+import { fetchSavedItems } from '@/store/itemsSlice';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const defaultFilters = {
   category: 'All',
@@ -19,7 +21,8 @@ const defaultFilters = {
 };
 
 export default function Saved() {
-  const savedItems = useSelector((state) => state.saved.items);
+  const dispatch = useDispatch();
+  const { savedItems, status } = useSelector((state) => state.items);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -53,9 +56,34 @@ export default function Saved() {
     setSearchParams({});
   };
 
+  useEffect(() => {
+    dispatch(fetchSavedItems());
+  }, [dispatch]);
+
   const filteredSaved = useMemo(() => {
     return filterOutfits(savedItems, filters);
   }, [savedItems, filters]);
+
+  if (status === 'loading' && savedItems.length === 0) {
+    return (
+      <section className='grow py-8 px-4'>
+        <h2 className='font-serif font-bold text-app-primary text-3xl leading-snug'>Saved Outfits</h2>
+        <h3 className='text-muted-foreground text-sm'>Your collection of interview-ready outfits</h3>
+        <div className='w-full my-6'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className='space-y-3'>
+                <Skeleton className='h-64 w-full rounded-lg' />
+                <Skeleton className='h-6 w-3/4' />
+                <Skeleton className='h-4 w-1/2' />
+                <Skeleton className='h-4 w-1/3' />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className='grow py-8 px-4'>

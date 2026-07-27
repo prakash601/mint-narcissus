@@ -25,7 +25,8 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { addOutfit } from '@/store/outfitSlice';
+import { createItem } from '@/store/itemsSlice';
+import { Loader2 } from 'lucide-react';
 
 const interviewTypesMap = [
   'Tech',
@@ -41,40 +42,44 @@ const ListOutfit = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  const { status } = useSelector((state) => state.items);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [category, setCategory] = useState('');
   const [interviewTypes, setInterviewTypes] = useState([]);
-  const [fabric, setFabric] = useState('');
-  const [height, setHeight] = useState(user.size.height);
-  const [fitType, setFitType] = useState(user.size.fitType);
-  const [topSize, setTopSize] = useState(user.size.topSize);
-  const [bottomSize, setBottomSize] = useState(user.size.bottomSize);
+  const [fabricType, setFabricType] = useState('');
+  const [height, setHeight] = useState(user?.size?.height || '');
+  const [fitType, setFitType] = useState(user?.size?.fitType || '');
+  const [topSize, setTopSize] = useState(user?.size?.topSize || '');
+  const [bottomSize, setBottomSize] = useState(user?.size?.bottomSize || '');
   const [confidenceNote, setConfidenceNote] = useState('');
 
-  const handleCancel = () => navigate('/');
-  const handleListOutfit = (e) => {
+  const handleCancel = () => navigate('/lender/my-outfits');
+  const handleListOutfit = async (e) => {
     e.preventDefault();
-    dispatch(
-      addOutfit({
-        title,
-        description,
-        outfitImageUrl: imageUrl,
-        category,
-        interviewTypes,
-        fabric,
-        size: { height, fitType, topSize, bottomSize },
-        confidenceNote,
-        lenderDetails: {
-          lenderId: user.id,
-          lenderName: user.name,
-        },
-      }),
-    );
-    toast.success('Outfit listed successfully!');
-    navigate('/');
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('outfitImageUrl', imageUrl);
+    formData.append('category', category);
+    formData.append('interviewTypes', JSON.stringify(interviewTypes));
+    formData.append('fabricType', fabricType);
+    formData.append('size', JSON.stringify({ height, fitType, topSize, bottomSize }));
+    formData.append('confidenceNote', confidenceNote);
+    formData.append('lenderDetails', JSON.stringify({
+      lenderId: user.id,
+      lenderName: user.name,
+    }));
+
+    try {
+      await dispatch(createItem(formData)).unwrap();
+      toast.success('Outfit listed successfully!');
+      navigate('/lender/my-outfits');
+    } catch (err) {
+      toast.error(err || 'Failed to list outfit');
+    }
   };
 
   const isValid =
@@ -83,7 +88,7 @@ const ListOutfit = () => {
     imageUrl &&
     category &&
     interviewTypes.length > 0 &&
-    fabric &&
+    fabricType &&
     height &&
     topSize &&
     bottomSize &&
@@ -113,6 +118,7 @@ const ListOutfit = () => {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
+                  disabled={status === 'loading'}
                 />
               </Field>
               {/* DESCRIPTION */}
@@ -126,6 +132,7 @@ const ListOutfit = () => {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   required
+                  disabled={status === 'loading'}
                 />
               </Field>
               {/* OUTFIT IMAGE URL */}
@@ -138,6 +145,7 @@ const ListOutfit = () => {
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
                   required
+                  disabled={status === 'loading'}
                 />
                 <p className='text-muted-foreground text-xs'>
                   Paste a URL to an image of your outfit
@@ -146,7 +154,7 @@ const ListOutfit = () => {
               {/* CATEGORY */}
               <Field>
                 <Label htmlFor='category'>Category *</Label>
-                <Select value={category} onValueChange={setCategory}>
+                <Select value={category} onValueChange={setCategory} disabled={status === 'loading'}>
                   <SelectTrigger className='w-full'>
                     <SelectValue placeholder='Select a category' />
                   </SelectTrigger>
@@ -179,6 +187,7 @@ const ListOutfit = () => {
                               : interviewTypes.filter((i) => i !== type),
                           )
                         }
+                        disabled={status === 'loading'}
                       />
                       <FieldLabel htmlFor={type}>{type}</FieldLabel>
                     </Field>
@@ -187,14 +196,15 @@ const ListOutfit = () => {
               </Field>
               {/* FABRIC */}
               <Field>
-                <Label htmlFor='fabric'>Fabric Type *</Label>
+                <Label htmlFor='fabricType'>Fabric Type *</Label>
                 <Input
-                  id='fabric'
+                  id='fabricType'
                   type='text'
                   placeholder='e.g., Wool, Cotton, Polyester blend'
-                  value={fabric}
-                  onChange={(e) => setFabric(e.target.value)}
+                  value={fabricType}
+                  onChange={(e) => setFabricType(e.target.value)}
                   required
+                  disabled={status === 'loading'}
                 />
               </Field>
               {/* SIZE */}
@@ -207,7 +217,7 @@ const ListOutfit = () => {
                   {/* HEIGHT */}
                   <Field>
                     <Label htmlFor='height'>Height</Label>
-                    <Select value={height} onValueChange={setHeight}>
+                    <Select value={height} onValueChange={setHeight} disabled={status === 'loading'}>
                       <SelectTrigger>
                         <SelectValue placeholder='Height' />
                       </SelectTrigger>
@@ -221,7 +231,7 @@ const ListOutfit = () => {
                   {/* FIT PREFERENCE */}
                   <Field>
                     <Label htmlFor='fitType'>Fit Preference</Label>
-                    <Select value={fitType} onValueChange={setFitType}>
+                    <Select value={fitType} onValueChange={setFitType} disabled={status === 'loading'}>
                       <SelectTrigger>
                         <SelectValue placeholder='Fit Preference' />
                       </SelectTrigger>
@@ -235,7 +245,7 @@ const ListOutfit = () => {
                   {/* TOP SIZE */}
                   <Field>
                     <Label htmlFor='topSize'>Top Size</Label>
-                    <Select value={topSize} onValueChange={setTopSize}>
+                    <Select value={topSize} onValueChange={setTopSize} disabled={status === 'loading'}>
                       <SelectTrigger>
                         <SelectValue placeholder='Top Size' />
                       </SelectTrigger>
@@ -250,7 +260,7 @@ const ListOutfit = () => {
                   {/* BOTTOM SIZE */}
                   <Field>
                     <Label htmlFor='bottomSize'>Bottom Size</Label>
-                    <Select value={bottomSize} onValueChange={setBottomSize}>
+                    <Select value={bottomSize} onValueChange={setBottomSize} disabled={status === 'loading'}>
                       <SelectTrigger>
                         <SelectValue placeholder='Bottom Size' />
                       </SelectTrigger>
@@ -276,6 +286,7 @@ const ListOutfit = () => {
                   className='resize-none'
                   value={confidenceNote}
                   onChange={(e) => setConfidenceNote(e.target.value)}
+                  disabled={status === 'loading'}
                 />
                 <p className='text-xs text-muted-foreground'>
                   A personal message to inspire the borrower
@@ -283,15 +294,16 @@ const ListOutfit = () => {
               </Field>
               {/* BUTTONS */}
               <div className='grid grid-cols-2 gap-2'>
-                <Button variant='outline' type='button' onClick={handleCancel}>
+                <Button variant='outline' type='button' onClick={handleCancel} disabled={status === 'loading'}>
                   Cancel
                 </Button>
                 <Button
                   type='submit'
                   className='bg-app-primary/95 hover:bg-app-primary'
-                  disabled={!isValid}
+                  disabled={status === 'loading' || !isValid}
                 >
-                  List Outfit
+                  {status === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {status === 'loading' ? 'Loading...' : 'List Outfit'}
                 </Button>
               </div>
             </form>
