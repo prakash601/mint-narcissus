@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { login } from '@/store/authSlice';
-import { linkedinOAuthRedirect, registerApi } from '@/api/auth.api';
+import { useDispatch, useSelector } from 'react-redux';
+import { registerUser } from '@/store/authSlice';
 import {
   Card,
   CardContent,
@@ -17,56 +16,32 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { LuLinkedin } from '@/utils/icons';
 import { toast } from 'sonner';
-import { Loader2 } from "lucide-react";
-import { MOCK_USERS } from '@/utils/mockData';
+import { Loader2 } from 'lucide-react';
+import { linkedinOAuthRedirect } from '@/api/auth.api';
 
 const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { status, error } = useSelector((state) => state.auth);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleLinkedInRegister = () => {
-    setIsLoading(true);
-    try {
-      dispatch(linkedinOAuthRedirect());
-    }finally {
-      setIsLoading(false);
-    }
+    linkedinOAuthRedirect();
   };
 
   const handleEmailRegister = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     try {
-      const formData = { name, email, password };
-      const data = await registerApi(formData);
-
-      dispatch(login(data.user));
-      toast.success(data?.message);
+      await dispatch(registerUser({ name, email, password })).unwrap();
+      toast.success('Account created successfully!');
+      navigate('/auth/profile-setup');
     } catch (err) {
-      toast.error(err.response?.data?.message)
-    } finally {
-      setIsLoading(false);
+      toast.error(err || 'Registration failed');
     }
   };
-
-  // TODO: Remove after demo
-  const handleDemoEmailRegister = () => {
-    navigate('/');
-    dispatch(login(MOCK_USERS?.registerEmailUser));
-  };
-
-  // TODO: Remove after demo
-  const handleDemoLinkedInRegister = () => {
-    navigate('/');
-    dispatch(login(MOCK_USERS.registerLinkedInUser));
-  };
-
-
 
   return (
     <section className='min-h-screen w-full flex items-center justify-center bg-app-bg p-4'>
@@ -85,13 +60,13 @@ const Register = () => {
         <CardContent className='px-6 space-y-4'>
           <Button
             variant='outline'
-            disabled={isLoading}
+            disabled={status === 'loading'}
             className='w-full text-foreground hover:text-accent-foreground'
             onClick={handleLinkedInRegister}
           >
             <LuLinkedin className='mr-2 size-4' />
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Loading..." : "Sign up with LinkedIn"}
+            {status === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {status === 'loading' ? 'Loading...' : 'Sign up with LinkedIn'}
           </Button>
           <div className='flex items-center'>
             <Separator className='flex-1' />
@@ -114,6 +89,7 @@ const Register = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={status === 'loading'}
               />
             </div>
             <div className='space-y-2'>
@@ -128,6 +104,7 @@ const Register = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={status === 'loading'}
               />
             </div>
             <div className='space-y-2'>
@@ -142,15 +119,19 @@ const Register = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={status === 'loading'}
               />
             </div>
+            {error && (
+              <p className='text-sm text-red-500 text-center'>{error}</p>
+            )}
             <Button
               type='submit'
               className='bg-app-primary/95 hover:bg-app-primary w-full transition-colors'
-              disabled={!name || !email || !password}
+              disabled={status === 'loading' || !name || !email || !password}
             >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? "Loading..." : "Sign Up"}
+              {status === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {status === 'loading' ? 'Loading...' : 'Sign Up'}
             </Button>
           </form>
         </CardContent>
@@ -165,24 +146,6 @@ const Register = () => {
             </Link>
           </p>
         </CardFooter>
-
-        {/* TODO: Remove after demo */}
-        <div className='flex gap-1 px-4'>
-          <Button
-            variant='outline'
-            onClick={handleDemoEmailRegister}
-            className='flex-1'
-          >
-            Sign up (Demo Email)
-          </Button>
-          <Button
-            variant='outline'
-            onClick={handleDemoLinkedInRegister}
-            className='flex-1'
-          >
-            Sign up (Demo LinkedIn)
-          </Button>
-        </div>
       </Card>
     </section>
   );

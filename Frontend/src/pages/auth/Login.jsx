@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { login } from '@/store/authSlice';
+import { loginUser } from '@/store/authSlice';
 import {
   Card,
   CardContent,
@@ -15,57 +15,31 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { LuLinkedin } from '@/utils/icons';
-import { MOCK_USERS } from '@/utils/mockData';
 import { toast } from 'sonner';
-import { Loader2 } from "lucide-react";
-import { getMeApi, linkedinOAuthRedirect, loginApi } from '@/api/auth.api';
+import { Loader2 } from 'lucide-react';
+import { linkedinOAuthRedirect } from '@/api/auth.api';
 
 const Login = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { status, error } = useSelector((state) => state.auth);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleLinkedInLogin = () => {
-    setIsLoading(true);
-    try {
-      dispatch(linkedinOAuthRedirect());
-    } finally {
-      setIsLoading(false);
-    }
+    linkedinOAuthRedirect();
   };
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     try {
-      const formData = { email, password };
-
-      const data = await loginApi(formData);
-      //await dispatch(login(data.user));
-
-      const {user} = await getMeApi();
-      dispatch(login(user));
-      toast.success(data?.message);
+      await dispatch(loginUser({ email, password })).unwrap();
+      toast.success('Welcome back!');
+      navigate('/');
     } catch (err) {
-      toast.error(err.response?.data?.message)
-    } finally {
-      setIsLoading(false);
+      toast.error(err || 'Login failed');
     }
-  };
-
-  // TODO: Remove after demo
-  const handleDemoEmailLogin = () => {
-    navigate('/');
-    dispatch(login(MOCK_USERS?.loginEmailUser));
-  };
-
-  // TODO: Remove after demo
-  const handleDemoLinkedInLogin = () => {
-    navigate('/');
-    dispatch(login(MOCK_USERS?.loginLinkedInUser));
   };
 
   return (
@@ -85,13 +59,13 @@ const Login = () => {
         <CardContent className='px-6 space-y-4'>
           <Button
             variant='outline'
-            disabled={isLoading}
+            disabled={status === 'loading'}
             className='w-full text-foreground hover:text-accent-foreground'
             onClick={handleLinkedInLogin}
           >
             <LuLinkedin className='mr-2 size-4' />
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? "Loading..." : "Sign in with LinkedIn"}
+            {status === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {status === 'loading' ? 'Loading...' : 'Sign in with LinkedIn'}
           </Button>
           <div className='flex items-center'>
             <Separator className='flex-1' />
@@ -114,6 +88,7 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={status === 'loading'}
               />
             </div>
             <div className='space-y-2'>
@@ -128,15 +103,19 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={status === 'loading'}
               />
             </div>
+            {error && (
+              <p className='text-sm text-red-500 text-center'>{error}</p>
+            )}
             <Button
               type='submit'
               className='bg-app-primary/95 hover:bg-app-primary w-full transition-colors'
-              disabled={!email || !password}
+              disabled={status === 'loading' || !email || !password}
             >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? "Loading..." : "Sign In"}
+              {status === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {status === 'loading' ? 'Loading...' : 'Sign In'}
             </Button>
           </form>
         </CardContent>
@@ -151,24 +130,6 @@ const Login = () => {
             </Link>
           </p>
         </CardFooter>
-
-        {/* TODO: Remove after demo */}
-        <div className='flex gap-1 px-4'>
-          <Button
-            variant='outline'
-            onClick={handleDemoEmailLogin}
-            className='flex-1'
-          >
-            Sign in (Demo Email)
-          </Button>
-          <Button
-            variant='outline'
-            onClick={handleDemoLinkedInLogin}
-            className='flex-1'
-          >
-            Sign in (Demo LinkedIn)
-          </Button>
-        </div>
       </Card>
     </section>
   );
