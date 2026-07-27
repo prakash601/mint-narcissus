@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { nanoid } from '@reduxjs/toolkit';
 import { toast } from 'sonner';
-import { createRequest } from '@/store/requestSlice';
+import { createBorrowRequest } from '@/store/rentalSlice';
 
 import {
   Dialog,
@@ -16,7 +15,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
 import { LuCircleCheck, LuShirt } from '@/utils/icons';
 import BorrowProgress from '../shared/BorrowProgress';
 import {
@@ -37,38 +35,29 @@ const points = [
 const BorrowRequestDialog = ({ outfit, isAvailable }) => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
-  const requests = useSelector((state) => state.requests.items);
+  const { myRequests, status: rentalStatus } = useSelector((state) => state.rental);
 
   const [step, setStep] = useState(1);
-  const [message, setMessage] = useState('');
   const [agreed, setAgreed] = useState(false);
 
   const existingRequest = useMemo(() => {
-    return requests.find(
+    return myRequests.find(
       (r) =>
         r.outfitId === outfit.id &&
         r.borrowerId === user.id &&
-        r.status !== 'rejected',
+        r.status !== 'rejected' &&
+        r.status !== 'cancelled',
     );
-  }, [requests, outfit.id, user.id]);
+  }, [myRequests, outfit.id, user.id]);
 
-  const handleSendRequest = () => {
-    dispatch(
-      createRequest({
-        id: nanoid(),
-        outfitId: outfit.id,
-        outfitTitle: outfit.title,
-        borrowerId: user.id,
-        borrowerName: user.name,
-        lenderId: outfit.lenderDetails.lenderId,
-        lenderName: outfit.lenderDetails.lenderName,
-        message,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      }),
-    );
-
-    toast.success('Borrow request sent successfully');
+  const handleSendRequest = async () => {
+    try {
+      await dispatch(createBorrowRequest(outfit.id)).unwrap();
+      toast.success('Borrow request sent successfully!');
+      setStep(1);
+    } catch (err) {
+      toast.error(err || 'Failed to send request');
+    }
   };
 
   // If already requested
@@ -102,9 +91,9 @@ const BorrowRequestDialog = ({ outfit, isAvailable }) => {
             <BorrowProgress />
             <div className='p-4 bg-blue-50 border border-blue-100 rounded-lg'>
               <p className='text-sm text-blue-900 leading-relaxed'>
-                <strong>What's next:</strong> You'll be notified when Michael
-                Chen reviews your request. Once approved, you'll be able to
-                message them directly to coordinate pickup details.
+                <strong>What's next:</strong> You'll be notified when{' '}
+                {outfit.lenderDetails.lenderName} reviews your request. Once approved,
+                you'll be able to message them directly to coordinate pickup details.
               </p>
             </div>
             <div className='p-4 bg-gray-50 rounded-lg'>
@@ -153,20 +142,9 @@ const BorrowRequestDialog = ({ outfit, isAvailable }) => {
           <>
             <BorrowProgress />
             {step === 1 && (
-              <Field>
-                <FieldLabel htmlFor='textarea-message'>
-                  Introduce Yourself (Optional)
-                </FieldLabel>
-                <Textarea
-                  className='bg-input-background dark:bg-input/30 resize-none min-h-16 '
-                  placeholder='Share a bit about yourself and your upcoming interview. This helps build trust with the lender...'
-                  onChange={(e) => setMessage(e.target.value)}
-                />
-                <FieldDescription className='text-xs'>
-                  A personal message helps lenders feel confident about lending
-                  to you
-                </FieldDescription>
-              </Field>
+              <p className='text-sm text-muted-foreground'>
+                Ready to request this outfit? The lender will review your request.
+              </p>
             )}
             {step === 2 && (
               <>
@@ -242,10 +220,10 @@ const BorrowRequestDialog = ({ outfit, isAvailable }) => {
               </Button>
               <Button
                 className='flex-1 bg-app-primary/90 hover:bg-app-primary'
-                disabled={!agreed}
+                disabled={!agreed || rentalStatus === 'loading'}
                 onClick={handleSendRequest}
               >
-                Send Request
+                {rentalStatus === 'loading' ? 'Sending...' : 'Send Request'}
               </Button>
             </>
           )}

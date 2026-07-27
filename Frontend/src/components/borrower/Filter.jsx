@@ -80,7 +80,7 @@ const Filter = ({ filters, updateFilter, onClear, defaultFilters }) => {
 
   const activeFilters = useMemo(() => {
     return Object.entries(filters).filter(
-      ([_, value]) => value && value !== '' && value !== 'All',
+      ([, value]) => value && value !== '' && value !== 'All',
     );
   }, [filters]);
 
