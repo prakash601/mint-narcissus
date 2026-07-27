@@ -1,11 +1,11 @@
 import axios from 'axios';
-import { store } from '../store/store';
 import { logout } from '../store/authSlice';
+import { setCorrelationId, getCorrelationId, createLogger } from '../lib/logger';
 
-// BASE API
+const log = createLogger('api');
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// AXIOS CLIENT
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -15,7 +15,6 @@ const axiosInstance = axios.create({
   withCredentials: true,
 });
 
-// REQUEST INTERCEPTOR
 axiosInstance.interceptors.request.use(
   (config) => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -24,28 +23,78 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${user.token}`;
     }
 
+    const correlationId = getCorrelationId();
+    if (correlationId) {
+      config.headers['x-request-id'] = correlationId;
+    }
+
+    if (user?.id) {
+      config.headers['x-user-id'] = user.id;
+    }
+
+    log.debug('API request', {
+      request: { method: config.method?.toUpperCase(), url: config.url },
+    });
+
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => {
+    log.error('Request setup failed', error);
+    return Promise.reject(error);
+  },
 );
 
-// RESPONSE INTERCEPTOR
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // if error
-    if (error.response) {
-      const { status } = error.response;
+  (response) => {
+    const correlationId = response.headers['x-request-id'];
+    if (correlationId) {
+      setCorrelationId(correlationId);
+    }
 
-      // Unauthorized → force logout
+    const responseData = response.data;
+    if (responseData && typeof responseData === 'object' && 'success' in responseData) {
+      const { success, message, code } = responseData;
+      if (success === false) {
+        const error = new Error(message || 'Request failed');
+        error.code = code;
+        error.response = response;
+        throw error;
+      }
+    }
+
+    log.debug('API response', {
+      request: {
+        method: response.config?.method?.toUpperCase(),
+        url: response.config?.url,
+        status: response.status,
+      },
+    });
+
+    return response;
+  },
+  async (error) => {
+    if (error.response) {
+      const correlationId = error.response.headers['x-request-id'];
+      if (correlationId) {
+        setCorrelationId(correlationId);
+      }
+
+      const { status, config } = error.response;
+      const method = config?.method?.toUpperCase();
+      const url = config?.url;
+
       if (status === 401) {
+        const { store } = await import('../store/store');
         store.dispatch(logout());
       }
 
-      // Forbidden
-      if (status === 403) {
-        console.error('Forbidden access');
-      }
+      log.error('API error', error, {
+        request: { method, url, status },
+      });
+    } else if (error.request) {
+      log.error('Network error', error, { meta: { message: 'No response received' } });
+    } else {
+      log.error('Request configuration error', error);
     }
 
     return Promise.reject(error);
