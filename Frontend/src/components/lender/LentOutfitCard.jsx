@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { removeOutfit, updateOutfitStatus } from '@/store/outfitSlice';
+import { updateItemStatus, deleteItem } from '@/store/itemsSlice';
 import {
   Select,
   SelectContent,
@@ -30,18 +30,22 @@ import {
 const LentOutfitCard = ({ outfit }) => {
   const dispatch = useDispatch();
 
-  const handleUpdateOutfitStatus = (id, status) =>
-    dispatch(
-      updateOutfitStatus({
-        outfitId: id,
-        status,
-      }),
-      toast.success(`Outfit status changed to ${status} successfully`),
-    );
+  const handleUpdateOutfitStatus = async (id, status) => {
+    try {
+      await dispatch(updateItemStatus({ id, status })).unwrap();
+      toast.success(`Outfit status changed to ${status} successfully`);
+    } catch (err) {
+      toast.error(err || 'Failed to update status');
+    }
+  };
 
-  const handleRemoveOutfit = (id) => {
-    dispatch(removeOutfit(id));
-    toast.success('Outfit removed successfully');
+  const handleRemoveOutfit = async (id) => {
+    try {
+      await dispatch(deleteItem(id)).unwrap();
+      toast.success('Outfit removed successfully');
+    } catch (err) {
+      toast.error(err || 'Failed to remove outfit');
+    }
   };
 
   return (

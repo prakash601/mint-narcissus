@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { toggleSave } from '@/store/savedSlice';
+import { toggleSaveItem } from '@/store/itemsSlice';
 import {
   Dialog,
   DialogContent,
@@ -25,21 +25,21 @@ const OutfitDetails = ({ outfit, isAvailable, isSaved = false }) => {
     category,
     confidenceNote,
     description,
-    fabric,
+    fabricType,
     interviewTypes,
     lenderDetails,
     outfitImageUrl,
     size,
     title,
+    id,
   } = outfit;
 
-  const handleToggleSave = () => {
-    if (isSaved) {
-      dispatch(toggleSave(outfit));
-      toast.success(`${outfit.title} removed from saved`);
-    } else {
-      dispatch(toggleSave(outfit));
-      toast.success(`${outfit.title} saved successfully`);
+  const handleToggleSave = async () => {
+    try {
+      await dispatch(toggleSaveItem({ id, isSaved })).unwrap();
+      toast.success(isSaved ? `${outfit.title} removed from saved` : `${outfit.title} saved successfully`);
+    } catch (err) {
+      toast.error(err || 'Failed to update saved item');
     }
   };
   return (
@@ -67,11 +67,11 @@ const OutfitDetails = ({ outfit, isAvailable, isSaved = false }) => {
           </div>
           <div className='flex items-center p-4 bg-muted rounded-lg space-x-4'>
             <Avatar size='lg'>
-              <AvatarImage src={lenderDetails.lenderImageUrl} />
-              <AvatarFallback>{lenderDetails.lenderName[0]}</AvatarFallback>
+              <AvatarImage src={lenderDetails?.lenderImageUrl} />
+              <AvatarFallback>{lenderDetails?.lenderName?.[0]}</AvatarFallback>
             </Avatar>
             <div className='flex flex-col leading-tight'>
-              <span className='font-semibold'>{lenderDetails.lenderName}</span>
+              <span className='font-semibold'>{lenderDetails?.lenderName}</span>
               <span className='text-sm text-muted-foreground'>Lender</span>
             </div>
           </div>
@@ -96,7 +96,7 @@ const OutfitDetails = ({ outfit, isAvailable, isSaved = false }) => {
                 </div>
                 <div>
                   <dt className='text-muted-foreground'>Fabric</dt>
-                  <dd className='font-medium'>{fabric}</dd>
+                  <dd className='font-medium'>{fabricType}</dd>
                 </div>
                 <div>
                   <dt className='text-muted-foreground'>Suitable For</dt>
@@ -117,16 +117,16 @@ const OutfitDetails = ({ outfit, isAvailable, isSaved = false }) => {
               <dl className='space-y-2 text-sm'>
                 <div>
                   <dt className='text-muted-foreground'>Top Size</dt>
-                  <dd className='font-medium'>{size.topSize}</dd>
+                  <dd className='font-medium'>{size?.topSize}</dd>
                 </div>
                 <div>
                   <dt className='text-muted-foreground'>Bottom Size</dt>
-                  <dd className='font-medium'>{size.bottomSize}</dd>
+                  <dd className='font-medium'>{size?.bottomSize}</dd>
                 </div>
                 <div>
                   <dt className='text-muted-foreground'>Fit Type</dt>
                   <dd className='font-medium'>
-                    {size.height}, {size.fitType}
+                    {size?.height}, {size?.fitType}
                   </dd>
                 </div>
               </dl>

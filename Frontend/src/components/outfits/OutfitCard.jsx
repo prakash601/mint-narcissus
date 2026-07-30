@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { toggleSave } from '@/store/savedSlice';
+import { toggleSaveItem } from '@/store/itemsSlice';
 import OutfitDetails from './OutfitDetails';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
@@ -22,27 +22,27 @@ export default function OutfitCard({ outfit }) {
     category,
     confidenceNote,
     description,
-    fabric,
+    fabricType,
     interviewTypes,
     lenderDetails,
     outfitImageUrl,
     size,
     status,
     title,
+    id,
   } = outfit;
   const isAvailable = status === 'Available';
   const dispatch = useDispatch();
-  const savedItems = useSelector((state) => state.saved.items);
+  const savedItems = useSelector((state) => state.items.savedItems);
 
-  const isSaved = savedItems.some((item) => item.id === outfit.id);
+  const isSaved = savedItems.some((item) => item.id === id);
 
-  const handleToggleSave = () => {
-    if (isSaved) {
-      dispatch(toggleSave(outfit));
-      toast.success(`${outfit.title} removed from saved`);
-    } else {
-      dispatch(toggleSave(outfit));
-      toast.success(`${outfit.title} saved successfully`);
+  const handleToggleSave = async () => {
+    try {
+      await dispatch(toggleSaveItem({ id, isSaved })).unwrap();
+      toast.success(isSaved ? `${outfit.title} removed from saved` : `${outfit.title} saved successfully`);
+    } catch (err) {
+      toast.error(err || 'Failed to update saved item');
     }
   };
   return (
@@ -92,11 +92,11 @@ export default function OutfitCard({ outfit }) {
           <Badge variant='secondary' className='flex items-center gap-1.5'>
             <LuShirt />
             <span className='text-xs'>
-              {size.height}, {size.fitType}
+              {size?.height}, {size?.fitType}
             </span>
           </Badge>
           <Badge variant='secondary' className='text-xs'>
-            Fabric-type: {fabric}
+            Fabric-type: {fabricType}
           </Badge>
         </div>
         <Separator />
@@ -107,11 +107,11 @@ export default function OutfitCard({ outfit }) {
           {isAvailable && (
             <div className='flex items-center justify-end gap-2'>
               <Avatar size='sm'>
-                <AvatarImage src={lenderDetails.lenderImageUrl} />
-                <AvatarFallback>{lenderDetails.lenderName[0]}</AvatarFallback>
+                <AvatarImage src={lenderDetails?.lenderImageUrl} />
+                <AvatarFallback>{lenderDetails?.lenderName?.[0]}</AvatarFallback>
               </Avatar>
               <span className='text-xs text-muted-foreground'>
-                {lenderDetails.lenderName}
+                {lenderDetails?.lenderName}
               </span>
             </div>
           )}

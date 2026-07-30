@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783227162063,
+      "tag": "0000_groovy_tinkerer",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783776000000,
+      "tag": "0001_p0_schema_fixes",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783862400000,
+      "tag": "0002_p2_indexes_ratings",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783948800000,
+      "tag": "0003_interview_types_array",
+      "breakpoints": true
+    }
+  ]
+}

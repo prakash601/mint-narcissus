@@ -41,18 +41,18 @@ export const filterOutfits = (outfits, filters) => {
       !availability || availability === 'All' || outfit.status === availability;
 
     const matchesTop =
-      !topSize || topSize === 'All' || outfit.size.topSize === topSize;
+      !topSize || topSize === 'All' || outfit.size?.topSize === topSize;
 
     const matchesBottom =
       !bottomSize ||
       bottomSize === 'All' ||
-      outfit.size.bottomSize === bottomSize;
+      outfit.size?.bottomSize === bottomSize;
 
     const matchesHeight =
-      !height || height === 'All' || outfit.size.height === height;
+      !height || height === 'All' || outfit.size?.height === height;
 
     const matchesFit =
-      !fitType || fitType === 'All' || outfit.size.fitType === fitType;
+      !fitType || fitType === 'All' || outfit.size?.fitType === fitType;
 
     return (
       matchesSearch &&

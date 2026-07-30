@@ -1,42 +1,23 @@
-import { useDispatch } from 'react-redux';
-import { updateRequestStatus } from '@/store/requestSlice';
-import { updateOutfitStatus } from '@/store/outfitSlice';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { toast } from 'sonner';
 import { LuCircleCheck, LuCircleX, LuMessageSquare } from '@/utils/icons';
 import { Badge } from '../ui/badge';
 import GetStatusBadge from '../shared/GetStatusBade';
 
-const RequestCard = ({ request }) => {
-  const dispatch = useDispatch();
-
-  const handleApprove = (request) => {
-    dispatch(
-      updateRequestStatus({ requestId: request.id, status: 'Approved' }),
-    );
-    dispatch(
-      updateOutfitStatus({ outfitId: request.outfitId, status: 'Borrowed' }),
-    );
-    toast.success('Request approved successfully');
-  };
-
-  const handleDecline = (requestId) => {
-    dispatch(updateRequestStatus({ requestId, status: 'Declined' }));
-    toast.success('Request declined');
-  };
+const RequestCard = ({ request, onApprove, onReject }) => {
+  const isPending = request.status === 'pending';
 
   return (
     <div className='space-y-4 border-t pt-4'>
       <div className='flex items-start gap-4'>
         <Avatar size='lg'>
           <AvatarImage src={request.borrowerImageUrl} />
-          <AvatarFallback>{request.borrowerName[0]}</AvatarFallback>
+          <AvatarFallback>{request.borrowerName?.[0] || 'B'}</AvatarFallback>
         </Avatar>
         <div className='flex-1'>
           <p className='font-semibold'>{request.borrowerName}</p>
           <p className='text-sm text-muted-foreground'>
-            Requested on {request.createdAt}
+            Requested on {request.createdAt ? new Date(request.createdAt).toLocaleDateString() : ''}
           </p>
         </div>
         <GetStatusBadge status={request.status} />
@@ -50,7 +31,7 @@ const RequestCard = ({ request }) => {
           </span>
         </div>
         <p className='text-sm text-blue-800 leading-relaxed'>
-          {request.message}
+          {request.message || 'No message provided'}
         </p>
       </div>
       {/* After Approval Info */}
@@ -62,13 +43,12 @@ const RequestCard = ({ request }) => {
         </p>
       </div>
       {/* Action Buttons */}
-      {request.status === 'Pending' && (
+      {isPending && (
         <div className='flex gap-3 pt-2'>
           <Button
             variant='default'
             className='flex-1 bg-app-primary/90 hover:bg-app-primary'
-            disabled={request.status !== 'Pending'}
-            onClick={() => handleApprove(request)}
+            onClick={() => onApprove(request.id)}
           >
             <LuCircleCheck />
             Accept Request
@@ -77,8 +57,7 @@ const RequestCard = ({ request }) => {
           <Button
             variant='outline'
             className='flex-1 hover:text-destructive hover:bg-destructive/10 focus:bg-destructive/10 dark:focus:bg-destructive/20 focus:text-destructive'
-            disabled={request.status !== 'Pending'}
-            onClick={() => handleDecline(request.id)}
+            onClick={() => onReject(request.id)}
           >
             <LuCircleX />
             Decline
