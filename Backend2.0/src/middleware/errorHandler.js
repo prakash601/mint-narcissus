@@ -42,9 +42,12 @@ export function errorHandler(err, req, res, _next) {
   logger.error("Unhandled error", err instanceof Error ? err : new Error(String(err)));
 
   const status = err.status || err.statusCode || 500;
+  // Never leak internal messages/stack to client; hide in production and
+  // for 5xx in any env. 4xx from Zod/AppError are already handled above.
+  const isServerError = status >= 500;
   res.status(status).json({
     success: false,
-    message: env.isProduction ? "Internal server error" : err.message || "Internal server error",
+    message: env.isProduction || isServerError ? "Internal server error" : "Unexpected error",
     code: "INTERNAL_ERROR",
   });
 }

@@ -69,7 +69,8 @@ async function applyRatingToUser(executor, rateeId, score) {
       totalRatings: users.totalRatings,
     })
     .from(users)
-    .where(eq(users.id, rateeId));
+    .where(eq(users.id, rateeId))
+    .for("update");
 
   if (!ratee) {
     throw AppError.notFound("Rated user not found.");
@@ -131,46 +132,50 @@ export async function userCanAccessConversation(userId, conversationId) {
 }
 
 export async function createRequest(userId, outfitId) {
-  const [item] = await db.select().from(items).where(eq(items.id, outfitId));
+  return db.transaction(async (tx) => {
+    // Lock item row to prevent concurrent borrows racing the AVAILABLE check
+    const [item] = await tx.select().from(items).where(eq(items.id, outfitId)).for("update");
 
-  if (!item) {
-    throw AppError.notFound("Outfit not found.");
-  }
+    if (!item) {
+      throw AppError.notFound("Outfit not found.");
+    }
 
-  if (item.status !== ITEM_STATUS.AVAILABLE) {
-    throw AppError.badRequest("This outfit is not available for borrowing.");
-  }
+    if (item.status !== ITEM_STATUS.AVAILABLE) {
+      throw AppError.badRequest("This outfit is not available for borrowing.");
+    }
 
-  if (item.lenderId === userId) {
-    throw AppError.badRequest("You cannot request your own outfit.");
-  }
+    if (item.lenderId === userId) {
+      throw AppError.badRequest("You cannot request your own outfit.");
+    }
 
-  const existing = await db
-    .select({ id: borrowRequests.id })
-    .from(borrowRequests)
-    .where(
-      and(
-        eq(borrowRequests.itemId, outfitId),
-        eq(borrowRequests.borrowerId, userId),
-        eq(borrowRequests.status, BORROW_STATUS.PENDING),
-      ),
-    );
+    const existing = await tx
+      .select({ id: borrowRequests.id })
+      .from(borrowRequests)
+      .where(
+        and(
+          eq(borrowRequests.itemId, outfitId),
+          eq(borrowRequests.borrowerId, userId),
+          eq(borrowRequests.status, BORROW_STATUS.PENDING),
+        ),
+      )
+      .for("update");
 
-  if (existing.length > 0) {
-    throw AppError.badRequest("You already have a pending request for this outfit.");
-  }
+    if (existing.length > 0) {
+      throw AppError.badRequest("You already have a pending request for this outfit.");
+    }
 
-  const [request] = await db
-    .insert(borrowRequests)
-    .values({
-      itemId: outfitId,
-      borrowerId: userId,
-      lenderId: item.lenderId,
-      status: BORROW_STATUS.PENDING,
-    })
-    .returning();
+    const [request] = await tx
+      .insert(borrowRequests)
+      .values({
+        itemId: outfitId,
+        borrowerId: userId,
+        lenderId: item.lenderId,
+        status: BORROW_STATUS.PENDING,
+      })
+      .returning();
 
-  return request;
+    return request;
+  });
 }
 
 export async function listIncomingRequests(userId, { page, limit, status }) {
@@ -233,7 +238,7 @@ export async function getRequestById(userId, id) {
 
 export async function approveRequest(userId, id) {
   return db.transaction(async (tx) => {
-    const [request] = await tx.select().from(borrowRequests).where(eq(borrowRequests.id, id));
+    const [request] = await tx.select().from(borrowRequests).where(eq(borrowRequests.id, id)).for("update");
 
     if (!request) {
       throw AppError.notFound("Request not found.");
@@ -318,13 +323,16 @@ export async function confirmLend(userId, id) {
 
 export async function acceptAgreement(userId, id) {
   return db.transaction(async (tx) => {
-    const [request] = await tx.select().from(borrowRequests).where(eq(borrowRequests.id, id));
+    const [request] = await tx.select().from(borrowRequests).where(eq(borrowRequests.id, id)).for("update");
 
     if (!request) {
       throw AppError.notFound("Request not found.");
     }
 
     assertBorrowTransition(request, BORROW_STATUS.BORROWED, userId);
+
+    // Lock item row to ensure status transition is atomic
+    await tx.select().from(items).where(eq(items.id, request.itemId)).for("update");
 
     const now = new Date();
     const [updatedRequest] = await tx
@@ -373,7 +381,7 @@ export async function acceptAgreement(userId, id) {
 
 export async function markReturned(userId, id) {
   return db.transaction(async (tx) => {
-    const [request] = await tx.select().from(borrowRequests).where(eq(borrowRequests.id, id));
+    const [request] = await tx.select().from(borrowRequests).where(eq(borrowRequests.id, id)).for("update");
 
     if (!request) {
       throw AppError.notFound("Request not found.");
@@ -418,7 +426,7 @@ export async function markReturned(userId, id) {
 
 export async function submitRating(userId, id, score) {
   return db.transaction(async (tx) => {
-    const [request] = await tx.select().from(borrowRequests).where(eq(borrowRequests.id, id));
+    const [request] = await tx.select().from(borrowRequests).where(eq(borrowRequests.id, id)).for("update");
 
     if (!request) {
       throw AppError.notFound("Request not found.");
