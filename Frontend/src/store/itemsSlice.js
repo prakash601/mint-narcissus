@@ -131,7 +131,7 @@ const itemsSlice = createSlice({
           page: action.payload.page || state.pagination.page,
           limit: state.pagination.limit,
           total: action.payload.total ?? state.pagination.total,
-          totalPages: action.payload.totalPages ?? Math.ceil((action.payload.total ?? 0) / state.pagination.limit) || 0,
+          totalPages: action.payload.totalPages ?? (Math.ceil((action.payload.total ?? 0) / state.pagination.limit) || 0),
         };
       })
       .addCase(fetchFeed.rejected, (state, action) => {
