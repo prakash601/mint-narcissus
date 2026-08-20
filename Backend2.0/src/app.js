@@ -45,13 +45,6 @@ app.use(correlationId);
 app.use(requestContext);
 app.use(createHttpLogger(logger));
 
-app.use((req, res, next) => {
-  if (req.app.get("io")) {
-    req.io = req.app.get("io");
-  }
-  next();
-});
-
 app.use(passport.initialize());
 
 app.get("/health", async (_req, res) => {

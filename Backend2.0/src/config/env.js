@@ -40,7 +40,6 @@ export function validateEnv() {
   requireEnv("DATABASE_URL");
 
   if (isProduction) {
-    requireEnv("SESSION_SECRET");
     requireEnv("CLIENT_URL");
   }
 }
@@ -56,7 +55,6 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET,
   jwtExpire: optionalEnv("JWT_EXPIRE", "1d"),
   cookieMaxAgeMs: Number(optionalEnv("COOKIE_MAX_AGE_MS", String(24 * 60 * 60 * 1000))),
-  sessionSecret: optionalEnv("SESSION_SECRET", process.env.JWT_SECRET),
 
   /** Single frontend origin for CORS, OAuth redirects, Socket.io */
   clientUrl: optionalEnv("CLIENT_URL", "http://localhost:5173"),
