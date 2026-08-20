@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../config/database.js";
 import { env } from "../config/env.js";
 import { AppError } from "../shared/errors/AppError.js";
+import { setContextUserId } from "../shared/logger/middleware/requestContext.js";
 import { users } from "../modules/auth/auth.schema.js";
 
 const auth = async (req, res, next) => {
@@ -31,6 +32,7 @@ const auth = async (req, res, next) => {
     }
 
     req.user = user;
+    setContextUserId(user.id);
     next();
   } catch (err) {
     if (err instanceof AppError) {
