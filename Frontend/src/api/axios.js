@@ -17,19 +17,12 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config) => {
-    const user = JSON.parse(localStorage.getItem('user'));
-
-    if (user?.token) {
-      config.headers.Authorization = `Bearer ${user.token}`;
-    }
-
+    // Auth is via httpOnly cookie (withCredentials:true). Do not send
+    // Authorization Bearer or x-user-id headers derived from localStorage —
+    // they are XSS-exfiltratable and server trusts only the cookie.
     const correlationId = getCorrelationId();
     if (correlationId) {
       config.headers['x-request-id'] = correlationId;
-    }
-
-    if (user?.id) {
-      config.headers['x-user-id'] = user.id;
     }
 
     log.debug('API request', {
