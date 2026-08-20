@@ -83,7 +83,7 @@ export async function listPublicFeed({ page, limit, size, category, interviewTyp
 
   if (size) conditions.push(eq(items.sizeLabel, size));
   if (category) conditions.push(eq(items.category, category));
-  if (interviewType) conditions.push(sql`${items.interviewTypes} @> ARRAY[${interviewType}::text]`);
+  if (interviewType) conditions.push(sql`${items.interviewTypes} @> ARRAY[${interviewType}]::text[]`);
 
   log.debug("listPublicFeed conditions built", { meta: { conditionCount: conditions.length } });
 
