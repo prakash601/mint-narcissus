@@ -1,4 +1,5 @@
 import {
+  LuArrowLeft,
   LuAward,
   LuBriefcase,
   LuCircleCheck,
@@ -20,6 +21,7 @@ import {
   LuPlus,
   LuRuler,
   LuSearch,
+  LuSend,
   LuSettings,
   LuShield,
   LuShirt,
@@ -33,6 +35,7 @@ import {
 import { TbHanger, TbHangerOff } from 'react-icons/tb';
 
 export {
+  LuArrowLeft,
   LuAward,
   LuBriefcase,
   LuChevronDown,
@@ -54,6 +57,7 @@ export {
   LuPlus,
   LuRuler,
   LuSearch,
+  LuSend,
   LuSettings,
   LuShield,
   LuShirt,
