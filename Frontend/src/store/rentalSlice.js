@@ -207,8 +207,9 @@ const rentalSlice = createSlice({
       state.error = null;
     },
     addMessage: (state, action) => {
-      if (state.currentConversation?.messages) {
-        state.currentConversation.messages.push(action.payload);
+      const msgs = state.currentConversation?.messages;
+      if (msgs && !msgs.some((m) => m.id === action.payload.id)) {
+        msgs.push(action.payload);
       }
     },
     setCurrentConversation: (state, action) => {
@@ -223,7 +224,7 @@ const rentalSlice = createSlice({
       })
       .addCase(fetchIncomingRequests.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.incomingRequests = action.payload.data;
+        state.incomingRequests = action.payload.requests || [];
         state.pagination = action.payload.pagination || state.pagination;
       })
       .addCase(fetchIncomingRequests.rejected, (state, action) => {
@@ -237,7 +238,7 @@ const rentalSlice = createSlice({
       })
       .addCase(fetchMyRequests.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.myRequests = action.payload.data;
+        state.myRequests = action.payload.requests || [];
         state.pagination = action.payload.pagination || state.pagination;
       })
       .addCase(fetchMyRequests.rejected, (state, action) => {
@@ -272,7 +273,8 @@ const rentalSlice = createSlice({
         log.error('Failed to fetch request', { meta: { message: action.payload } });
       })
       .addCase(approveRequest.fulfilled, (state, action) => {
-        const updated = action.payload.data;
+        // approve responds with { request, conversationId }
+        const updated = action.payload.request;
         state.incomingRequests = state.incomingRequests.map((r) =>
           r.id === updated.id ? updated : r,
         );
@@ -353,16 +355,18 @@ const rentalSlice = createSlice({
         state.conversations = action.payload.data;
       })
       .addCase(fetchConversationHistory.fulfilled, (state, action) => {
-        state.currentConversation = action.payload.data;
+        // history responds with { conversation, request, messages, pagination } at top level
+        state.currentConversation = action.payload;
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
-        if (state.currentConversation?.messages) {
-          state.currentConversation.messages.push(action.payload.data);
+        const msgs = state.currentConversation?.messages;
+        if (msgs && !msgs.some((m) => m.id === action.payload.data.id)) {
+          msgs.push(action.payload.data);
         }
       })
       .addCase(markConversationRead.fulfilled, (state) => {
-        if (state.currentConversation) {
-          state.currentConversation.unreadCount = 0;
+        if (state.currentConversation?.conversation) {
+          state.currentConversation.conversation.isRead = true;
         }
       });
   },

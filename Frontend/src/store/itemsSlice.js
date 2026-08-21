@@ -64,8 +64,10 @@ export const toggleSaveItem = createAsyncThunk(
         await unsaveItemApi(id);
         return { id, saved: false };
       } else {
-        const result = await saveItemApi(id);
-        return { item: result.data, saved: true };
+        // save endpoint returns the wishlist row; fetch the item itself
+        await saveItemApi(id);
+        const detail = await getItemByIdApi(id);
+        return { item: detail.data, saved: true };
       }
     } catch (err) {
       return rejectWithValue(err.message || 'Failed to save item');

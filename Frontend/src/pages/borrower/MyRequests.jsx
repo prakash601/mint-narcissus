@@ -1,17 +1,45 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Card, CardContent } from '@/components/ui/card';
 import RequestCard from '@/components/borrower/RequestCard';
-import { fetchMyRequests, cancelRequest } from '@/store/rentalSlice';
+import RatingModal from '@/components/shared/RatingModal';
+import {
+  fetchMyRequests,
+  cancelRequest,
+  acceptAgreement,
+} from '@/store/rentalSlice';
 import { Skeleton } from '@/components/ui/skeleton';
+import useItemDetails from '@/hooks/useItemDetails';
+import { toast } from 'sonner';
 
 const MyRequests = () => {
   const dispatch = useDispatch();
   const { myRequests, status } = useSelector((state) => state.rental);
+  const [ratingRequest, setRatingRequest] = useState(null);
 
   useEffect(() => {
-    dispatch(fetchMyRequests());
+    dispatch(fetchMyRequests({ page: 1, limit: 50 }));
   }, [dispatch]);
+
+  const itemsById = useItemDetails(myRequests.map((r) => r.itemId));
+
+  const handleCancel = async (id) => {
+    try {
+      await dispatch(cancelRequest(id)).unwrap();
+      toast.success('Request cancelled');
+    } catch (err) {
+      toast.error(err || 'Failed to cancel request');
+    }
+  };
+
+  const handleAcceptAgreement = async (id) => {
+    try {
+      await dispatch(acceptAgreement(id)).unwrap();
+      toast.success('Agreement accepted — the outfit is yours!');
+    } catch (err) {
+      toast.error(err || 'Failed to accept agreement');
+    }
+  };
 
   if (status === 'loading' && myRequests.length === 0) {
     return (
@@ -53,7 +81,7 @@ const MyRequests = () => {
         </div>
 
         {/* Empty State */}
-        {myRequests.length === 0 && (
+        {myRequests.length === 0 && status !== 'loading' && (
           <Card>
             <CardContent className='text-center py-10 text-muted-foreground'>
               You haven't requested any outfits yet.
@@ -66,10 +94,19 @@ const MyRequests = () => {
           <RequestCard
             key={request.id}
             request={request}
-            onCancel={(id) => dispatch(cancelRequest(id))}
+            item={itemsById[request.itemId]}
+            onCancel={handleCancel}
+            onAcceptAgreement={handleAcceptAgreement}
+            onRate={setRatingRequest}
           />
         ))}
       </div>
+
+      <RatingModal
+        open={!!ratingRequest}
+        onOpenChange={(open) => !open && setRatingRequest(null)}
+        request={ratingRequest}
+      />
     </section>
   );
 };
