@@ -96,10 +96,6 @@ const authSlice = createSlice({
       state.user.activeRole = action.payload;
       localStorage.setItem('user', JSON.stringify(state.user));
     },
-    verifyLinkedIn: (state) => {
-      state.user.isVerified = true;
-      localStorage.setItem('user', JSON.stringify(state.user));
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -168,5 +164,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { login, logout, completeProfile, switchRole, verifyLinkedIn } = authSlice.actions;
+export const { login, logout, completeProfile, switchRole } = authSlice.actions;
 export default authSlice.reducer;
