@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { switchRole, verifyLinkedIn } from '@/store/authSlice';
+import { updateUser } from '@/store/authSlice';
+import { fetchMyRequests, fetchIncomingRequests } from '@/store/rentalSlice';
+import StarRating from '@/components/settings/StarRatings';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -24,38 +25,53 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Field, FieldGroup } from '@/components/ui/field';
-import {
-  LuAward,
-  LuBriefcase,
-  LuLinkedin,
-  LuMail,
-  LuRuler,
-  LuShield,
-  LuStar,
-  LuUser,
-} from '@/utils/icons';
+import { LuMail, LuRuler, LuUser } from '@/utils/icons';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const Settings = () => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  const { myRequests, incomingRequests } = useSelector((state) => state.rental);
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [sizes, setSizes] = useState(() => ({
+    height: user?.size?.height || '',
+    fitType: user?.size?.fitType || '',
+    topSize: user?.size?.topSize || '',
+    bottomSize: user?.size?.bottomSize || '',
+  }));
+  const [saving, setSaving] = useState(false);
 
-  const handleLinkedInConnection = () => {
-    setIsLoading(true);
+  const isLender = user?.activeRole === 'lender';
+
+  useEffect(() => {
+    if (isLender) {
+      dispatch(fetchIncomingRequests({ page: 1, limit: 50 }));
+    } else {
+      dispatch(fetchMyRequests({ page: 1, limit: 50 }));
+    }
+  }, [dispatch, isLender]);
+
+  const requests = isLender ? incomingRequests : myRequests;
+  const activeLoans = requests.filter((r) => r.status === 'borrowed').length;
+  const completed = requests.filter((r) => ['returned', 'rated'].includes(r.status)).length;
+
+  const handleSizeChange = (key) => (value) => {
+    setSizes((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      dispatch(verifyLinkedIn());
+      await dispatch(updateUser({ size: sizes })).unwrap();
+      toast.success('Profile updated!');
+    } catch (err) {
+      toast.error(err || 'Failed to update profile');
     } finally {
-      setIsLoading(false);
+      setSaving(false);
     }
   };
 
-  const handleSwitch = (role) => {
-    navigate('/');
-    dispatch(switchRole(role));
-  };
   return (
     <section className='grow container mx-auto px-4 py-8'>
       <div className='max-w-4xl mx-auto space-y-6'>
@@ -78,9 +94,9 @@ const Settings = () => {
             <div className='flex flex-col md:flex-row gap-6'>
               <div className='flex items-center space-x-4 flex-1'>
                 <Avatar className='size-20'>
-                  <AvatarImage src={user?.image} alt={user?.name} />
+                  <AvatarImage src={user?.profilePhoto} alt={user?.name} />
                   <AvatarFallback className='capitalize text-2xl font-medium'>
-                    {user?.name[0]}
+                    {user?.name?.[0]}
                   </AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
@@ -92,11 +108,10 @@ const Settings = () => {
                     <Badge variant='outline' className='capitalize rounded-sm'>
                       {user?.activeRole}
                     </Badge>
-                    {user?.isVerified && (
-                      <Badge className='rounded-sm bg-blue-100 text-blue-700 border-blue-200'>
-                        <LuShield className='size-3' />
-                        LinkedIn Verified
-                      </Badge>
+                    {user?.bio && (
+                      <p className='text-xs text-muted-foreground w-full line-clamp-2'>
+                        {user.bio}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -104,40 +119,26 @@ const Settings = () => {
               <div className='border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6'>
                 <div className='space-y-3'>
                   <div className='flex items-center gap-2'>
-                    {/* TODO: Add a rating system */}
-                    <div className='flex items-center'>
-                      <LuStar className='text-amber-400 fill-amber-400' />
-                      <LuStar className='text-amber-400 fill-amber-400' />
-                      <LuStar className='text-amber-400 fill-amber-400' />
-                      <LuStar className='text-amber-400 fill-amber-400' />
-                      <LuStar className='text-amber-400 fill-amber-400' />
-                    </div>
-                    <span className='text-sm font-semibold'>5</span>
+                    <StarRating rating={user?.averageRating ?? 0} size={18} />
+                    <span className='text-sm font-semibold'>
+                      {(user?.averageRating ?? 0).toFixed(1)}
+                    </span>
                     <span className='text-xs text-muted-foreground'>
-                      (0 reviews)
+                      ({user?.totalRatings ?? 0}{' '}
+                      {user?.totalRatings === 1 ? 'review' : 'reviews'})
                     </span>
                   </div>
                   <div className='grid grid-cols-2 gap-3 text-sm'>
-                    {/* TODO: Update this */}
-                    <div className='text-center p-2 bg-emerald-50 rounded-md'>
-                      <p className='text-lg font-bold text-emerald-700'>6</p>
-                      <p className='text-xs text-emerald-600'>Outfits lent</p>
-                    </div>
                     <div className='text-center p-2 bg-blue-50 rounded-md'>
-                      <p className='text-lg font-bold text-blue-700'>3</p>
-                      <p className='text-xs text-blue-600'>Borrowed</p>
+                      <p className='text-lg font-bold text-blue-700'>{activeLoans}</p>
+                      <p className='text-xs text-blue-600'>
+                        {isLender ? 'On loan' : 'Active borrows'}
+                      </p>
                     </div>
-                  </div>
-                  {/* TODO: Award System */}
-                  <div className='flex flex-wrap gap-1'>
-                    <Badge className='rounded-sm text-xs bg-purple-100 text-purple-700 border-purple-200'>
-                      <LuAward className='size-3' />
-                      Trusted Lender
-                    </Badge>
-                    <Badge className='rounded-sm text-xs bg-purple-100 text-purple-700 border-purple-200'>
-                      <LuAward className='size-3' />
-                      Community Contributor
-                    </Badge>
+                    <div className='text-center p-2 bg-emerald-50 rounded-md'>
+                      <p className='text-lg font-bold text-emerald-700'>{completed}</p>
+                      <p className='text-xs text-emerald-600'>Completed</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -153,7 +154,13 @@ const Settings = () => {
             <CardDescription>Update your personal details</CardDescription>
           </CardHeader>
           <CardContent>
-            <form className='space-y-6'>
+            <form
+              className='space-y-6'
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSave();
+              }}
+            >
               <div className='space-y-4'>
                 <div className='space-y-2'>
                   <Label htmlFor='name'>
@@ -163,7 +170,7 @@ const Settings = () => {
                   <Input
                     id='name'
                     placeholder='Your name'
-                    value={user?.name}
+                    value={user?.name || ''}
                     disabled
                   />
                 </div>
@@ -175,38 +182,12 @@ const Settings = () => {
                   <Input
                     id='email'
                     placeholder='you@example.com'
-                    value={user?.email}
+                    value={user?.email || ''}
                     disabled
                   />
                   <p className='text-xs text-muted-foreground'>
                     Email cannot be changed
                   </p>
-                </div>
-                <div className='space-y-2'>
-                  <Label>
-                    LinkedIn Status:{' '}
-                    <span
-                      className={`
-                      text-sm ${user?.isVerified ? 'text-green-800' : 'text-red-600'}
-                    `}
-                    >
-                      {user.isVerified ? 'Verified' : 'Not Verified'}
-                    </span>
-                  </Label>
-                  {!user?.isVerified && (
-                    <Button
-                      variant='outline'
-                      disabled={isLoading}
-                      className='w-full text-foreground hover:text-accent-foreground'
-                      onClick={handleLinkedInConnection}
-                    >
-                      <LuLinkedin className='mr-2 size-4' />
-                      {isLoading && (
-                        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                      )}
-                      {isLoading ? 'Loading...' : 'Get Verified with LinkedIn'}
-                    </Button>
-                  )}
                 </div>
               </div>
               <Separator />
@@ -222,7 +203,10 @@ const Settings = () => {
                     {/* HEIGHT */}
                     <Field>
                       <Label htmlFor='height'>Height</Label>
-                      <Select value={user?.size?.height} disabled>
+                      <Select
+                        value={sizes.height}
+                        onValueChange={handleSizeChange('height')}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder='Height' />
                         </SelectTrigger>
@@ -236,7 +220,10 @@ const Settings = () => {
                     {/* FIT PREFERENCE */}
                     <Field>
                       <Label htmlFor='fitType'>Fit Preference</Label>
-                      <Select value={user?.size?.fitType} disabled>
+                      <Select
+                        value={sizes.fitType}
+                        onValueChange={handleSizeChange('fitType')}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder='Fit Type' />
                         </SelectTrigger>
@@ -250,7 +237,10 @@ const Settings = () => {
                     {/* TOP SIZE */}
                     <Field>
                       <Label htmlFor='topSize'>Top Size</Label>
-                      <Select value={user?.size?.topSize} disabled>
+                      <Select
+                        value={sizes.topSize}
+                        onValueChange={handleSizeChange('topSize')}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder='Top Size' />
                         </SelectTrigger>
@@ -265,7 +255,10 @@ const Settings = () => {
                     {/* BOTTOM SIZE */}
                     <Field>
                       <Label htmlFor='bottomSize'>Bottom Size</Label>
-                      <Select value={user?.size?.bottomSize} disabled>
+                      <Select
+                        value={sizes.bottomSize}
+                        onValueChange={handleSizeChange('bottomSize')}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder='Bottom Size' />
                         </SelectTrigger>
@@ -282,10 +275,12 @@ const Settings = () => {
                 <Separator />
                 <div className='flex justify-end'>
                   <Button
+                    type='submit'
                     className='bg-app-primary/90 hover:bg-app-primary/95 focus:bg-app-primary'
-                    disabled
+                    disabled={saving}
                   >
-                    Save Changes
+                    {saving && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+                    {saving ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </div>
               </div>
@@ -300,17 +295,6 @@ const Settings = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className='space-y-3'>
-            <div className='flex justify-between text-sm'>
-              <span className='text-muted-foreground'>Member Since</span>
-              <span className='font-medium'>
-                {user?.createdAt ||
-                  new Date().toLocaleDateString('en-US', {
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-              </span>
-            </div>
-            <Separator />
             <div className='flex justify-between text-sm'>
               <span className='text-muted-foreground'>Account Type</span>
               <span className='font-medium capitalize'>{user?.activeRole}</span>
@@ -328,60 +312,17 @@ const Settings = () => {
               </span>
             </div>
             <Separator />
-            {/* TODO: Apply ratings */}
             <div className='flex justify-between text-sm'>
               <span className='text-muted-foreground'>Community Rating</span>
               <div className='flex items-center gap-1.5'>
-                <LuStar className='text-amber-400 fill-amber-400' />
-                <span className='font-medium'>5.0 / 5.0</span>
+                <StarRating rating={user?.averageRating ?? 0} size={14} />
+                <span className='font-medium'>
+                  {(user?.averageRating ?? 0).toFixed(1)} / 5.0
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
-        {/* Account Mode Card */}
-        {/* <Card>
-          <CardHeader>
-            <CardTitle className='text-xl font-serif text-app-primary leading-none'>
-              Account Mode
-            </CardTitle>
-            <CardDescription>
-              Switch between borrower and lender modes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-              <Button
-                onClick={() => handleSwitch('borrower')}
-                className={`p-6 border-2 rounded-lg text-left transition-all hover:shadow-md ${user?.activeRole === 'borrower' ? 'border-app-secondary bg-app-secondary/5 text-white' : 'border-gray-200 hover:border-gray-300'}`}
-              >
-                <div className='flex items-center justify-between mb-3'>
-                  <div className='flex items-center gap-2'>
-                    <div
-                      className={`p-2 rounded-lg ${user?.activeRole === 'borrower' ? 'bg-app-secondary/10' : 'bg-gray-100'}`}
-                    >
-                      <LuUser size='5' />
-                    </div>
-                    <h5 className='font-semibold font-serif text-app-primary'>
-                      Borrower
-                    </h5>
-                  </div>
-                </div>
-                <p className='text-sm text-muted-foreground'>
-                  Browse outfits, save favorites, and request to borrow for your
-                  interviews
-                </p>
-              </Button>
-              <Button
-                disabled={user?.activeRole === 'lender'}
-                onClick={() => handleSwitch('lender')}
-                className={`flex flex-col justify-center items-start border rounded-lg p-4 grow text-sm ${user?.activeRole === 'lender' ? 'border-app-primary bg-app-primary text-white' : ''}`}
-              >
-                <LuBriefcase />
-                Lender
-              </Button>
-            </div>
-          </CardContent>
-        </Card> */}
       </div>
     </section>
   );
