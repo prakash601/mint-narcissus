@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   Card,
@@ -9,51 +9,68 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import RequestCard from '@/components/lender/RequestCard';
-import { fetchIncomingRequests, approveRequest, rejectRequest } from '@/store/rentalSlice';
+import RatingModal from '@/components/shared/RatingModal';
+import {
+  fetchIncomingRequests,
+  approveRequest,
+  rejectRequest,
+  confirmLend,
+  markReturned,
+} from '@/store/rentalSlice';
 import { Skeleton } from '@/components/ui/skeleton';
+import useItemDetails from '@/hooks/useItemDetails';
 import { toast } from 'sonner';
+
+const PAGE_SIZE = 10;
 
 const Requests = () => {
   const dispatch = useDispatch();
   const { incomingRequests, status, pagination } = useSelector((state) => state.rental);
+  const [ratingRequest, setRatingRequest] = useState(null);
 
   useEffect(() => {
-    dispatch(fetchIncomingRequests({ page: 1, limit: 10 }));
+    dispatch(fetchIncomingRequests({ page: 1, limit: PAGE_SIZE }));
   }, [dispatch]);
 
+  const itemsById = useItemDetails(incomingRequests.map((r) => r.itemId));
+
   const grouped = incomingRequests.reduce((acc, request) => {
-    if (!acc[request.outfitId]) acc[request.outfitId] = [];
-    acc[request.outfitId].push(request);
+    if (!acc[request.itemId]) acc[request.itemId] = [];
+    acc[request.itemId].push(request);
     return acc;
   }, {});
 
   const pending = incomingRequests.filter((r) => r.status === 'pending').length;
-  const approved = incomingRequests.filter((r) => r.status === 'approved').length;
-  const declined = incomingRequests.filter((r) => r.status === 'rejected').length;
+  const active = incomingRequests.filter((r) =>
+    ['approved', 'agreement_pending', 'borrowed'].includes(r.status),
+  ).length;
+  const completed = incomingRequests.filter((r) =>
+    ['returned', 'rated'].includes(r.status),
+  ).length;
 
   const statsMap = [
     { title: 'Pending', value: pending, textColor: 'text-black' },
-    { title: 'Approved', value: approved, textColor: 'text-app-secondary' },
-    { title: 'Declined', value: declined, textColor: 'text-gray-500' },
+    { title: 'Active', value: active, textColor: 'text-app-secondary' },
+    { title: 'Completed', value: completed, textColor: 'text-gray-500' },
   ];
 
-  const handleApprove = async (id) => {
+  const runAction = async (thunk, id, successMessage) => {
     try {
-      await dispatch(approveRequest(id)).unwrap();
-      toast.success('Request approved!');
+      await dispatch(thunk(id)).unwrap();
+      toast.success(successMessage);
+      return true;
     } catch (err) {
-      toast.error(err || 'Failed to approve request');
+      toast.error(err || 'Something went wrong');
+      return false;
     }
   };
 
-  const handleReject = async (id) => {
-    try {
-      await dispatch(rejectRequest(id)).unwrap();
-      toast.success('Request rejected');
-    } catch (err) {
-      toast.error(err || 'Failed to reject request');
-    }
-  };
+  const handleApprove = (id) => runAction(approveRequest, id, 'Request approved!');
+  const handleReject = (id) => runAction(rejectRequest, id, 'Request rejected');
+  const handleConfirmLend = (id) =>
+    runAction(confirmLend, id, 'Lend confirmed — awaiting borrower agreement');
+  const handleMarkReturned = (id) =>
+    runAction(markReturned, id, 'Outfit marked as returned');
 
   if (status === 'loading' && incomingRequests.length === 0) {
     return (
@@ -120,20 +137,26 @@ const Requests = () => {
         )}
 
         <div className='space-y-6'>
-          {Object.entries(grouped).map(([outfitId, requests]) => {
-            const outfit = requests[0]?.outfit;
+          {Object.entries(grouped).map(([itemId, requests]) => {
+            const item = itemsById[itemId];
             return (
-              <Card key={outfitId}>
+              <Card key={itemId}>
                 <CardHeader>
                   <div className='flex items-center gap-4'>
-                    <img
-                      src={outfit?.outfitImageUrl || outfit?.imageUrl}
-                      alt={outfit?.title}
-                      className='w-20 h-20 object-cover rounded-lg'
-                    />
+                    {item?.images?.[0] ? (
+                      <img
+                        src={item.images[0]}
+                        alt={item.title || 'Outfit'}
+                        className='w-20 h-20 object-cover rounded-lg'
+                      />
+                    ) : (
+                      <div className='w-20 h-20 rounded-lg bg-muted animate-pulse' />
+                    )}
                     <div className='flex-1'>
-                      <CardTitle className='font-serif text-app-primary text-lg'>{outfit?.title}</CardTitle>
-                      <CardDescription>{outfit?.category}</CardDescription>
+                      <CardTitle className='font-serif text-app-primary text-lg'>
+                        {item?.title || 'Outfit'}
+                      </CardTitle>
+                      <CardDescription>{item?.category}</CardDescription>
                     </div>
                     <Badge className='rounded-sm bg-app-secondary text-white'>
                       {requests.length} Request{requests.length > 1 ? 's' : ''}
@@ -147,6 +170,9 @@ const Requests = () => {
                       request={request}
                       onApprove={handleApprove}
                       onReject={handleReject}
+                      onConfirmLend={handleConfirmLend}
+                      onMarkReturned={handleMarkReturned}
+                      onRate={setRatingRequest}
                     />
                   ))}
                 </CardContent>
@@ -155,28 +181,38 @@ const Requests = () => {
           })}
         </div>
 
-        {pagination.totalPages > 1 && (
+        {pagination.pages > 1 && (
           <div className='flex justify-center gap-2 mt-6'>
             <button
               className='px-4 py-2 border rounded hover:bg-muted disabled:opacity-50'
               disabled={pagination.page === 1}
-              onClick={() => dispatch(fetchIncomingRequests({ page: pagination.page - 1, limit: 10 }))}
+              onClick={() =>
+                dispatch(fetchIncomingRequests({ page: pagination.page - 1, limit: PAGE_SIZE }))
+              }
             >
               Previous
             </button>
             <span className='flex items-center px-4'>
-              Page {pagination.page} of {pagination.totalPages}
+              Page {pagination.page} of {pagination.pages}
             </span>
             <button
               className='px-4 py-2 border rounded hover:bg-muted disabled:opacity-50'
-              disabled={pagination.page === pagination.totalPages}
-              onClick={() => dispatch(fetchIncomingRequests({ page: pagination.page + 1, limit: 10 }))}
+              disabled={pagination.page === pagination.pages}
+              onClick={() =>
+                dispatch(fetchIncomingRequests({ page: pagination.page + 1, limit: PAGE_SIZE }))
+              }
             >
               Next
             </button>
           </div>
         )}
       </div>
+
+      <RatingModal
+        open={!!ratingRequest}
+        onOpenChange={(open) => !open && setRatingRequest(null)}
+        request={ratingRequest}
+      />
     </section>
   );
 };
