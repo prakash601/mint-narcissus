@@ -9,7 +9,7 @@ in the freeCodeCamp Spring 2026 cohort.
 I was the **top contributor**. Everything below is verifiable from git history in
 this repository — nothing here is claimed from memory.
 
-## My role: top contributor (100 of 154 commits, 65%)
+## My role: top contributor — ~65% of every commit in this repository
 
 | Contributor | Commits | Share |
 |---|---:|---:|
@@ -21,6 +21,9 @@ this repository — nothing here is claimed from memory.
 | Jaco Botha | 9 | 5.8% |
 | Pawan Singh | 4 | 2.6% |
 | Naomi Carrigan (cohort organiser) | 1 | 0.6% |
+
+_Counts as of 2026-09-19. Run `git shortlog -sne --all` for live figures — they
+move as anyone commits._
 
 Active period: **2026-02-07 → 2026-09-14**.
 
