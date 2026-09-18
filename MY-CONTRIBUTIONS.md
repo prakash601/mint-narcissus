@@ -13,15 +13,14 @@ this repository — nothing here is claimed from memory.
 
 | Contributor | Commits | Share |
 |---|---:|---:|
-| **Prakash Sankhla (me)** | 65 | 42.2% |
-| Prakash Sankhla | 35 | 22.7% |
+| **Prakash Sankhla (me)** | 101 | 65.2% |
 | Prince Ubakaeze | 11 | 7.1% |
 | Syed-Zahaab-Hussain | 10 | 6.5% |
 | Krutika Waghmare | 10 | 6.5% |
 | Kapil Singh Negi | 9 | 5.8% |
 | Jaco Botha | 9 | 5.8% |
 | Pawan Singh | 4 | 2.6% |
-| Naomi Carrigan | 1 | 0.6% |
+| Naomi Carrigan (cohort organiser) | 1 | 0.6% |
 
 Active period: **2026-02-07 → 2026-09-14**.
 
